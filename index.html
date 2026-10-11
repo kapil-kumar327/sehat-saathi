@@ -1,0 +1,464 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SehatSaathi - Medicine Reminder</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f8f7;color:#173b38;line-height:1.6}
+header{background:white;padding:16px 5%;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.logo{font-size:23px;font-weight:bold;color:#087f72}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.btn{background:#087f72;color:white;border:0;border-radius:8px;padding:10px 15px}
+nav{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;background:white;padding:12px}
+.nav-btn{border:0;background:white;padding:10px;border-radius:8px}
+.nav-btn.active{background:#e8f7f2;color:#087f72;font-weight:bold}
+main{max-width:1050px;margin:auto;padding:25px 16px;min-height:75vh}
+.hero{background:linear-gradient(120deg,#d9f5e9,#effbf5);padding:28px;border-radius:16px;display:flex;justify-content:space-between;align-items:center}
+.hero h1{font-size:30px}
+.hero-icon{font-size:65px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}
+.stat,.card{background:white;border:1px solid #e0ebe7;border-radius:12px;padding:18px}
+.stat span{color:#71817e;font-size:14px}
+.stat h2{color:#087f72;margin:5px 0}
+.hidden{display:none!important}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin:20px 0}
+.form label{font-weight:bold;font-size:14px}
+.form input,.form select,.search{width:100%;padding:11px;margin-top:6px;border:1px solid #dce7e3;border-radius:8px;background:white}
+.medicine-list{display:grid;gap:10px;margin:15px 0}
+.medicine-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:white;border:1px solid #e0ebe7;border-radius:12px;padding:14px}
+.pill{font-size:25px;background:#e8f7f2;padding:8px;border-radius:9px}
+.med-info{flex:1;min-width:110px}
+.med-info small{display:block;color:#71817e}
+.med-time{font-weight:bold}
+.actions{display:flex;gap:6px}
+.small-btn{background:white;border:1px solid #ddd;border-radius:7px;padding:7px}
+.done{background:#e6f7e9;color:#16763c}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:20px 0}
+.food-icon{font-size:30px}
+.card p{color:#63736f;font-size:14px}
+.warning{background:#fff7df;padding:14px;border-radius:9px;margin-top:20px;color:#6e5825;font-size:13px}
+.empty{padding:22px;background:white;border:1px dashed #b8d5cc;border-radius:10px;text-align:center;color:#71817e}
+footer{text-align:center;color:#71817e;padding:20px;font-size:12px}
+.toast{position:fixed;bottom:15px;right:15px;background:#173b38;color:white;padding:14px;border-radius:10px;max-width:90%}
+@media(max-width:600px){.hero h1{font-size:23px}.hero-icon{font-size:40px}.stats,.form,.grid{grid-template-columns:1fr}header{padding:12px}.logo{font-size:18px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">💊 SehatSaathi</div>
+  <button id="notifyBtn" class="btn">🔔 Notifications चालू करें</button>
+</header>
+
+<nav>
+  <button class="nav-btn active" data-page="home">🏠 होम</button>
+  <button class="nav-btn" data-page="reminders">⏰ दवा रिमाइंडर</button>
+  <button class="nav-btn" data-page="diet">🥗 डाइट प्लानर</button>
+  <button class="nav-btn" data-page="library">📚 दवा और बीमारी</button>
+</nav>
+
+<main>
+
+<section id="home" class="page">
+  <div class="hero">
+    <div>
+      <p>YOUR DAILY HEALTH COMPANION</p>
+      <h1>अपनी सेहत का ध्यान रखें ❤️</h1>
+      <p>दवा समय पर याद रखें और अपनी दिनचर्या व्यवस्थित करें।</p>
+      <button class="btn" data-open="reminders">+ दवा जोड़ें</button>
+    </div>
+    <div class="hero-icon">💊</div>
+  </div>
+
+  <div class="stats">
+    <article class="stat"><span>आज की दवाइयाँ</span><h2 id="totalCount">0</h2></article>
+    <article class="stat"><span>ली गई दवाइयाँ</span><h2 id="takenCount">0</h2></article>
+    <article class="stat"><span>अगली दवा</span><h2 id="nextTime">--:--</h2></article>
+  </div>
+
+  <h2>आज का शेड्यूल</h2>
+  <div id="todayList" class="medicine-list"></div>
+</section>
+
+<section id="reminders" class="page hidden">
+  <h1>⏰ दवा रिमाइंडर</h1>
+  <p>दवा का समय डॉक्टर के निर्देश के अनुसार दर्ज करें।</p>
+
+  <form id="medicineForm" class="card form">
+    <label>दवा का नाम
+      <input id="medicineName" maxlength="80" required placeholder="दवा का नाम">
+    </label>
+
+    <label>दवा लेने का समय
+      <input id="medicineTime" type="time" required>
+    </label>
+
+    <label>दिन का समय
+      <select id="medicinePeriod">
+        <option>सुबह</option>
+        <option>दोपहर</option>
+        <option>शाम</option>
+        <option>रात</option>
+      </select>
+    </label>
+
+    <label>नोट (वैकल्पिक)
+      <input id="medicineNote" maxlength="120" placeholder="डॉक्टर का निर्देश">
+    </label>
+
+    <button type="submit" class="btn">＋ रिमाइंडर सेव करें</button>
+  </form>
+
+  <h2>आपकी दवाइयाँ</h2>
+  <div id="allMedicines" class="medicine-list"></div>
+</section>
+
+<section id="diet" class="page hidden">
+  <h1>🥗 डाइट प्लानर</h1>
+  <p>सामान्य खान-पान की जानकारी। यह व्यक्तिगत मेडिकल डाइट नहीं है।</p>
+
+  <div class="grid">
+    <article class="card">
+      <div class="food-icon">🌅</div>
+      <h3>सुबह का नाश्ता</h3>
+      <p>दलिया, ओट्स, फल या संतुलित घरेलू नाश्ता।</p>
+    </article>
+
+    <article class="card">
+      <div class="food-icon">☀️</div>
+      <h3>दोपहर का भोजन</h3>
+      <p>दाल, सब्जियाँ, अनाज और प्रोटीन वाले खाद्य पदार्थ।</p>
+    </article>
+
+    <article class="card">
+      <div class="food-icon">🌙</div>
+      <h3>रात का भोजन</h3>
+      <p>अपनी जरूरत और चिकित्सकीय सलाह के अनुसार संतुलित भोजन लें।</p>
+    </article>
+
+    <article class="card">
+      <div class="food-icon">💧</div>
+      <h3>पानी</h3>
+      <p>पर्याप्त पानी पिएँ, जब तक डॉक्टर ने तरल पदार्थ सीमित न किए हों।</p>
+    </article>
+  </div>
+
+  <div class="warning">
+    <b>महत्वपूर्ण:</b> डायबिटीज, किडनी या हृदय रोग में डाइट व्यक्ति के अनुसार बदलती है। डॉक्टर या पंजीकृत डाइटीशियन से सलाह लें।
+  </div>
+</section>
+
+<section id="library" class="page hidden">
+  <h1>📚 दवा और बीमारी की जानकारी</h1>
+  <p>यह शुरुआती उदाहरण सूची है, सभी दवाओं की पूरी सूची नहीं।</p>
+
+  <input id="searchInput" class="search" placeholder="दवा या बीमारी खोजें...">
+  <div id="libraryList" class="grid"></div>
+
+  <div class="warning">
+    दवा शुरू करने, रोकने या उसकी खुराक बदलने से पहले डॉक्टर या फार्मासिस्ट से पूछें।
+  </div>
+</section>
+
+</main>
+
+<footer>SehatSaathi © 2026 · Medicine Reminder Project</footer>
+<div id="message" class="toast hidden" role="status"></div>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const MED_KEY = "sehatsaathi_medicines_v1";
+const TAKEN_KEY = "sehatsaathi_taken_v1";
+
+let medicines = readData(MED_KEY, []);
+let taken = readData(TAKEN_KEY, {});
+let notified = new Set();
+let toastTimer;
+
+function readData(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveData() {
+  localStorage.setItem(MED_KEY, JSON.stringify(medicines));
+  localStorage.setItem(TAKEN_KEY, JSON.stringify(taken));
+}
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[ch]));
+}
+
+function message(text) {
+  $("message").textContent = text;
+  $("message").classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    $("message").classList.add("hidden");
+  }, 3500);
+}
+
+function openPage(id) {
+  document.querySelectorAll(".page").forEach(page => {
+    page.classList.toggle("hidden", page.id !== id);
+  });
+
+  document.querySelectorAll(".nav-btn").forEach(button => {
+    button.classList.toggle("active", button.dataset.page === id);
+  });
+}
+
+document.querySelectorAll(".nav-btn").forEach(button => {
+  button.addEventListener("click", () => openPage(button.dataset.page));
+});
+
+document.querySelectorAll("[data-open]").forEach(button => {
+  button.addEventListener("click", () => openPage(button.dataset.open));
+});
+
+$("medicineForm").addEventListener("submit", event => {
+  event.preventDefault();
+
+  medicines.push({
+    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random())),
+    name: $("medicineName").value.trim(),
+    time: $("medicineTime").value,
+    period: $("medicinePeriod").value,
+    note: $("medicineNote").value.trim()
+  });
+
+  saveData();
+  renderMedicines();
+  event.target.reset();
+  message("रिमाइंडर सेव हो गया।");
+});
+
+function markTaken(id) {
+  const day = today();
+  taken[day] ||= [];
+
+  if (!taken[day].includes(id)) {
+    taken[day].push(id);
+  }
+
+  saveData();
+  renderMedicines();
+  message("दवा को ली गई मार्क कर दिया गया।");
+}
+
+function deleteMedicine(id) {
+  medicines = medicines.filter(medicine => medicine.id !== id);
+  saveData();
+  renderMedicines();
+  message("रिमाइंडर हटा दिया गया।");
+}
+
+function medicineCard(medicine) {
+  const done = (taken[today()] || []).includes(medicine.id);
+
+  return `
+    <article class="medicine-item">
+      <div class="pill">💊</div>
+
+      <div class="med-info">
+        <b>${escapeHTML(medicine.name)}</b>
+        <small>${escapeHTML(medicine.period)}${medicine.note ? " · "+escapeHTML(medicine.note) : ""}</small>
+      </div>
+
+      <div class="med-time">${escapeHTML(medicine.time)}</div>
+
+      <div class="actions">
+        <button class="small-btn ${done ? "done" : ""}" data-taken="${escapeHTML(medicine.id)}">
+          ${done ? "✓ ली गई" : "✓ ली"}
+        </button>
+
+        <button class="small-btn" data-delete="${escapeHTML(medicine.id)}">
+          हटाएँ
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderMedicines() {
+  medicines.sort((a, b) => a.time.localeCompare(b.time));
+
+  const html = medicines.map(medicineCard).join("");
+
+  $("allMedicines").innerHTML = html ||
+    '<div class="empty">अभी कोई दवा नहीं जोड़ी गई।</div>';
+
+  $("todayList").innerHTML = html ||
+    '<div class="empty">आज का शेड्यूल खाली है। दवा जोड़ें।</div>';
+
+  const dayTaken = taken[today()] || [];
+
+  $("totalCount").textContent = medicines.length;
+
+  $("takenCount").textContent = dayTaken.filter(id =>
+    medicines.some(medicine => medicine.id === id)
+  ).length;
+
+  const now = new Date().toTimeString().slice(0, 5);
+
+  const next = medicines.find(medicine =>
+    medicine.time >= now && !dayTaken.includes(medicine.id)
+  );
+
+  $("nextTime").textContent = next ? next.time : "--:--";
+
+  document.querySelectorAll("[data-taken]").forEach(button => {
+    button.addEventListener("click", () => markTaken(button.dataset.taken));
+  });
+
+  document.querySelectorAll("[data-delete]").forEach(button => {
+    button.addEventListener("click", () => deleteMedicine(button.dataset.delete));
+  });
+}
+
+$("notifyBtn").addEventListener("click", async () => {
+  if (!("Notification" in window)) {
+    message("यह ब्राउज़र Notifications सपोर्ट नहीं करता।");
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    message("Notifications के लिए localhost या HTTPS पर वेबसाइट खोलें।");
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+
+    if (permission !== "granted") {
+      message("Browser settings में Notification अनुमति दें।");
+      return;
+    }
+
+    message("Notifications की अनुमति चालू है।");
+
+    new Notification("SehatSaathi", {
+      body: "Medicine reminder की अनुमति चालू हो गई है।"
+    });
+  } catch {
+    message("Notification चालू नहीं हो सकी।");
+  }
+});
+
+function checkReminders() {
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 5);
+  const day = today();
+
+  medicines.forEach(medicine => {
+    const key = `${day}_${medicine.id}_${time}`;
+
+    if (
+      medicine.time === time &&
+      !notified.has(key) &&
+      !(taken[day] || []).includes(medicine.id)
+    ) {
+      notified.add(key);
+
+      const body = `${medicine.name} — ${medicine.period}. डॉक्टर के निर्देश का पालन करें।`;
+
+      if (
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification("💊 दवा लेने का समय", { body });
+        } catch {
+          message(body);
+        }
+      } else {
+        message(body);
+      }
+    }
+  });
+
+  renderMedicines();
+}
+
+const library = [
+  {
+    name: "Paracetamol",
+    category: "दर्द और बुखार",
+    info: "दर्द और बुखार में उपयोग होती है। सही खुराक और सावधानियों के लिए डॉक्टर या फार्मासिस्ट से पूछें।"
+  },
+  {
+    name: "ORS",
+    category: "पानी और लवण की कमी",
+    info: "दस्त में पानी और लवण की कमी पूरी करने में मदद करता है।"
+  },
+  {
+    name: "Cetirizine",
+    category: "एलर्जी",
+    info: "कुछ एलर्जी के लक्षणों में उपयोग होती है; इससे नींद आ सकती है।"
+  },
+  {
+    name: "मधुमेह (Diabetes)",
+    category: "बीमारी",
+    info: "भोजन योजना व्यक्ति की स्थिति, जाँच और दवाओं पर निर्भर करती है।"
+  },
+  {
+    name: "उच्च रक्तचाप (High BP)",
+    category: "बीमारी",
+    info: "नमक और जीवनशैली की व्यक्तिगत सलाह डॉक्टर से लें।"
+  },
+  {
+    name: "किडनी रोग",
+    category: "बीमारी",
+    info: "भोजन और तरल की जरूरत बीमारी के चरण और जाँच पर निर्भर करती है।"
+  }
+];
+
+function renderLibrary(query = "") {
+  const results = library.filter(item =>
+    `${item.name} ${item.category} ${item.info}`
+      .toLowerCase()
+      .includes(query.toLowerCase())
+  );
+
+  $("libraryList").innerHTML = results.map(item => `
+    <article class="card">
+      <small>${escapeHTML(item.category)}</small>
+      <h3>${escapeHTML(item.name)}</h3>
+      <p>${escapeHTML(item.info)}</p>
+    </article>
+  `).join("") || '<div class="empty">कोई जानकारी नहीं मिली।</div>';
+}
+
+$("searchInput").addEventListener("input", event => {
+  renderLibrary(event.target.value);
+});
+
+renderMedicines();
+renderLibrary();
+
+// रिमाइंडर पेज खुला होने पर हर 15 सेकंड में समय चेक होगा।
+setInterval(checkReminders, 15000);
+</script>
+
+</body>
+</html>
